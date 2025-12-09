@@ -1,4 +1,5 @@
 const { errorHandling } = require("../helpers/errorHandling");
+const bcryptjs = require('bcryptjs');
 const userModel = require("../models/userModel");
 const materialModel = require("../models/materialModel");
 const exerciseModel = require("../models/exerciseModel");
@@ -42,7 +43,7 @@ exports.index = async (req, res) => {
                 const objectData = childData.toObject();
 
                 // Sanitize: Remove internal arrays and role info
-                const { childIds, deleted, role, ...child } = objectData;
+                const { childIds, deleted, role, password, ...child } = objectData;
 
                 let finalChildData = {
                     child,
@@ -84,8 +85,12 @@ exports.store = async (req, res) => {
         const teacher = await userModel.findById(req.user.userId)
         if (!teacher) return res.status(400).json({ success: false, message: 'Teacher not found' })
 
+        const username = req.body.fullName.toLowerCase().split(' ').join('')
+        const generatedPassword = await bcryptjs.hash(username, 10)
         const newChild = new userModel({
             fullName: req.body.fullName,
+            username: username,
+            password: generatedPassword,
             deafness: req.body.deafness,
             dateOfBirth: req.body.dateOfBirth,
             parent: {
@@ -97,7 +102,7 @@ exports.store = async (req, res) => {
         newChild.role = 2; // Set role to Child
 
         // Manual field validation
-        await newChild.validate(['fullName', 'deafness', 'dateOfBirth', 'parent.fullName']);
+        await newChild.validate(['fullName', 'username', 'deafness', 'dateOfBirth', 'parent.fullName']);
 
         // Save Child
         await newChild.save({ validateBeforeSave: false });
@@ -106,10 +111,12 @@ exports.store = async (req, res) => {
         teacher.childIds.push(newChild._id);
         await teacher.save({ validateBeforeSave: false })
 
+        const { childIds, deleted, role, password, ...childObj } = newChild.toObject();
+
         res.status(201).json({
             success: true,
             message: "Successfully added new child",
-            data: newChild
+            data: childObj
         });
 
     } catch (error) {
@@ -155,10 +162,12 @@ exports.update = async (req, res) => {
 
         await child.save({ new: true, validateBeforeSave: false });
 
+        const { childIds, deleted, role, password, ...childObj } = child.toObject();
+
         res.status(201).json({
             success: true,
             message: "Child successfully updated",
-            data: child
+            data: childObj
         });
     } catch (error) {
         errorHandling(error, req, res);
@@ -222,10 +231,11 @@ exports.show = async (req, res) => {
 
         // Data Sanitization
         const childObject = child.toObject();
-        const { childIds, deleted, role, ...childData } = childObject;
+        const { childIds, deleted, role, password, ...childData } = childObject;
 
         const teacherObject = teacher ? teacher.toObject() : {};
         const { deleted: teacherDeleted, role: teacherRole, ...teacherData } = teacherObject;
+        
 
         const data = {
             child: childData,
