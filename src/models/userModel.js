@@ -77,7 +77,16 @@ const UserSchema = new mongoose.Schema({
             "Ketunaan wajib diisi",
         ],
     },
-    parent: [{
+    dateOfBirth: {
+        type: Date,
+        required: [
+            function () {
+                return this.role === 2
+            },
+            "Tanggal lahir wajib diisi"
+        ]
+    },
+    parent: {
         fullName: {
             type: String,
             required: [
@@ -108,7 +117,7 @@ const UserSchema = new mongoose.Schema({
         work: {
             type: String,
         },
-    }],
+    },
     childIds: [{
         type: mongoose.Schema.Types.ObjectId,
         required: false,

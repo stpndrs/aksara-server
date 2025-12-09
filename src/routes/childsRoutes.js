@@ -23,13 +23,6 @@ router.get('/', childsController.index)
 router.post('/', childsController.store)
 
 /**
- * @route POST /v1/childs/insert
- * @description Allows a Teacher to link an existing student record using the student's unique code.
- * @access Private
- */
-router.post('/insert', childsController.insert)
-
-/**
  * @route GET /v1/childs/:id
  * @description Retrieves the detailed profile, exercises, and materials of a student using their unique code.
  * @access Private
