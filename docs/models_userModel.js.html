@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: models/userModel.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: models/userModel.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const mongoose = require('mongoose');
+const MongooseDelete = require('mongoose-delete');
+
+/**
+ * @file Mongoose Schema for User data.
+ * @module UserModel
+ */
+
+/**
+ * @typedef {object} User
+ * @property {string} fullName - The user's full name. Required.
+ * @property {string} email - The user's email address. Must be unique and valid format. Required.
+ * @property {string} password - The user's password (hashed). Minimum 6 characters. Required.
+ * @property {string} phone - The user's phone number. Minimum 6 characters. Required.
+ * @property {number} role - The user's role in the system. Required.
+ * * 1: Teacher (Guru)
+ * * 2: Parent (Orang Tua)
+ * * 3: Student (Siswa)
+ * @property {boolean} [isScreening] - Indicates if the student has undergone the screening process. Required only if role is 3.
+ * @property {number} [level] - The student's dyslexia level, required only if `isScreening` is true.
+ * @property {string} [code] - Unique enrollment code for students, used by teachers to add them. Sparse unique index.
+ * @property {mongoose.Types.ObjectId[]} [childIds] - Array of ObjectIDs referring to associated students (used by Role 1 and 2).
+ * @property {mongoose.Types.ObjectId} [parentsId] - ObjectID reference to the parent (used by Role 3).
+ * @property {mongoose.Types.ObjectId} [teacherId] - ObjectID reference to the teacher (used by Role 3).
+ * @property {Date} createdAt - Timestamp of creation.
+ * @property {Date} updatedAt - Timestamp of last update.
+ * @property {Date} [deletedAt] - Timestamp of soft deletion (due to MongooseDelete plugin).
+ */
+const UserSchema = new mongoose.Schema({
+    fullName: {
+        type: String,
+        required: [true, "Nama lengkap wajib diisi"],
+        // unique: true
+    },
+    email: {
+        type: String,
+        match: [/.+\@.+\..+/, 'Email harus valid'],
+        required: [true, "Email wajib diisi"],
+        unique: true
+    },
+    password: {
+        type: String,
+        required: [true, "Password wajib diisi"],
+        minlength: [6, "Password minimal 6 karater"]
+        // select: false
+    },
+    phone: {
+        type: String,
+        required: [true, "Nomor telepon wajib diisi"],
+        minlength: [6, "Nomor telepon minimal 6 karater"]
+    },
+    /**
+     * 1 = Guru
+     * 2 = Orang Tua
+     * 3 = Siswa
+     */
+    role: {
+        type: Number,
+        required: [true, "Role wajib dipilih"]
+    },
+
+    /**
+     * Child
+     */
+    isScreening: {
+        type: Boolean,
+        required: [
+            function () {
+                return this.role === 3
+            },
+            "Status screening wajib diisi",
+        ],
+    },
+    level: {
+        type: Number,
+        required: [
+            function () {
+                return this.isScreening
+            },
+            "Pilih level disleksia anak",
+        ]
+    },
+    code: {
+        type: String,
+        unique: true,
+        sparse: true
+    },
+    childIds: [{
+        type: mongoose.Schema.Types.ObjectId,
+        required: false,
+        ref: 'User' // &lt;-- Menunjuk ke model 'User' itu sendiri juga
+    }],
+    parentsId: {
+        type: mongoose.Schema.Types.ObjectId,
+        required: false,
+        ref: 'User'
+    },
+    teacherId: {
+        type: mongoose.Schema.Types.ObjectId,
+        required: false,
+        ref: 'User'
+    }
+}, {
+    timestamps: true,
+});
+
+UserSchema.plugin(MongooseDelete, {
+    overrideMethods: 'all',
+    deletedAt: true
+})
+
+module.exports = mongoose.model('User', UserSchema);
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-AuthController.html">AuthController</a></li><li><a href="module-AuthMiddleware.html">AuthMiddleware</a></li><li><a href="module-AuthRoutes.html">AuthRoutes</a></li><li><a href="module-ChildsController.html">ChildsController</a></li><li><a href="module-ChildsRoutes.html">ChildsRoutes</a></li><li><a href="module-DBConfig.html">DBConfig</a></li><li><a href="module-ExerciseController.html">ExerciseController</a></li><li><a href="module-ExerciseModel.html">ExerciseModel</a></li><li><a href="module-ExercisesRoutes.html">ExercisesRoutes</a></li><li><a href="module-MainRouter.html">MainRouter</a></li><li><a href="module-MaterialController.html">MaterialController</a></li><li><a href="module-MaterialModel.html">MaterialModel</a></li><li><a href="module-MaterialsRoutes.html">MaterialsRoutes</a></li><li><a href="module-QuestionBankController.html">QuestionBankController</a></li><li><a href="module-QuestionBankModel.html">QuestionBankModel</a></li><li><a href="module-QuestionBankRoutes.html">QuestionBankRoutes</a></li><li><a href="module-UploadFileUtil.html">UploadFileUtil</a></li><li><a href="module-UserModel.html">UserModel</a></li></ul><h3>Namespaces</h3><ul><li><a href="module-MainRouter-v1.html">v1</a></li></ul><h3>Global</h3><ul><li><a href="global.html#calculateCharacterMatchScore">calculateCharacterMatchScore</a></li><li><a href="global.html#calculateSimilarity">calculateSimilarity</a></li><li><a href="global.html#host">host</a></li><li><a href="global.html#name">name</a></li><li><a href="global.html#processAudioToText">processAudioToText</a></li><li><a href="global.html#processImageToText">processImageToText</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Thu Oct 16 2025 14:45:14 GMT+0700 (Western Indonesia Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

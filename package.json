@@ -1,0 +1,22 @@
+{
+  "dependencies": {
+    "@google-cloud/speech": "^7.2.0",
+    "@google-cloud/text-to-speech": "^6.2.0",
+    "@google-cloud/vision": "^5.3.3",
+    "axios": "^1.13.2",
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "jsdoc": "^4.0.5",
+    "jsonwebtoken": "^9.0.2",
+    "md5": "^2.3.0",
+    "mongoose": "^8.17.1",
+    "mongoose-delete": "^1.0.2",
+    "multer": "^2.0.2",
+    "natural": "^8.1.0"
+  },
+  "scripts": {
+    "docs": "jsdoc -r -d ./docs"
+  }
+}

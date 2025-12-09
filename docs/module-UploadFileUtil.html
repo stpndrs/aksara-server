@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Module: UploadFileUtil</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Module: UploadFileUtil</h1>
+
+    
+
+
+
+
+<section>
+
+<header>
+    
+        
+            
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Utility module for configuring Multer to handle file uploads (specifically images).</div>
+        
+
+        
+            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="utils_uploadFile.js.html">utils/uploadFile.js</a>, <a href="utils_uploadFile.js.html#line4">line 4</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+        <h3 class="subsection-title">Methods</h3>
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id=".uploadFile"><span class="type-signature">(static) </span>uploadFile<span class="signature">(destination)</span><span class="type-signature"> &rarr; {multer.Multer}</span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    Configures and returns a Multer middleware function to handle multiple file uploads (`.array('images')`).
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>destination</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">The target directory path for saving the uploaded files.</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+    <h5 class="subsection-title">Properties:</h5>
+
+    
+
+<table class="props">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>limits.fileSize</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Maximum file size set to 2MB (2 * 1024 * 1024 bytes).</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>fileFilter</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">function</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Only allows 'image/png', 'image/jpg', and 'image/jpeg' MIME types.</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>arrayName</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">The expected field name in the request body is 'images'.</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="utils_uploadFile.js.html">utils/uploadFile.js</a>, <a href="utils_uploadFile.js.html#line34">line 34</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    Multer middleware configured for array upload with specific limits and filters.
+</div>
+
+
+
+<dl>
+    <dt>
+        Type
+    </dt>
+    <dd>
+        
+<span class="param-type">multer.Multer</span>
+
+
+    </dd>
+</dl>
+
+    
+
+
+
+
+
+        
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-AuthController.html">AuthController</a></li><li><a href="module-AuthMiddleware.html">AuthMiddleware</a></li><li><a href="module-AuthRoutes.html">AuthRoutes</a></li><li><a href="module-ChildsController.html">ChildsController</a></li><li><a href="module-ChildsRoutes.html">ChildsRoutes</a></li><li><a href="module-DBConfig.html">DBConfig</a></li><li><a href="module-ExerciseController.html">ExerciseController</a></li><li><a href="module-ExerciseModel.html">ExerciseModel</a></li><li><a href="module-ExercisesRoutes.html">ExercisesRoutes</a></li><li><a href="module-MainRouter.html">MainRouter</a></li><li><a href="module-MaterialController.html">MaterialController</a></li><li><a href="module-MaterialModel.html">MaterialModel</a></li><li><a href="module-MaterialsRoutes.html">MaterialsRoutes</a></li><li><a href="module-QuestionBankController.html">QuestionBankController</a></li><li><a href="module-QuestionBankModel.html">QuestionBankModel</a></li><li><a href="module-QuestionBankRoutes.html">QuestionBankRoutes</a></li><li><a href="module-UploadFileUtil.html">UploadFileUtil</a></li><li><a href="module-UserModel.html">UserModel</a></li></ul><h3>Namespaces</h3><ul><li><a href="module-MainRouter-v1.html">v1</a></li></ul><h3>Global</h3><ul><li><a href="global.html#calculateCharacterMatchScore">calculateCharacterMatchScore</a></li><li><a href="global.html#calculateSimilarity">calculateSimilarity</a></li><li><a href="global.html#host">host</a></li><li><a href="global.html#name">name</a></li><li><a href="global.html#processAudioToText">processAudioToText</a></li><li><a href="global.html#processImageToText">processImageToText</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Thu Oct 16 2025 14:45:14 GMT+0700 (Western Indonesia Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

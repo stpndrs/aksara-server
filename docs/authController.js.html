@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: authController.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: authController.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const bcryptjs = require('bcryptjs')
+const jwt = require('jsonwebtoken')
+const userModel = require('../models/userModel')
+const { getTokenFromCookies, decodeToken } = require('../helpers/authHelpers')
+const clientSecret = process.env.JWT_SECRET
+const fs = require('fs')
+const { errorHandling } = require('../helpers/errorHandling')
+
+/**
+ * Controller module for user authentication (login, register, logout).
+ * @module AuthController
+ */
+
+// ----------------------------------------------------------------------
+// LOGIN
+// ----------------------------------------------------------------------
+
+/**
+ * Asynchronous function to handle user login.
+ *
+ * @async
+ * @function login
+ * @memberof module:AuthController
+ * @param {object} req - Express request object. Expected to contain `req.body` with `email` and `password`.
+ * @param {object} res - Express response object. Used to send status and data back to the client.
+ * @param {string} req.body.email - Email address used for authentication.
+ * @param {string} req.body.password - User password for authentication.
+ * @returns {Promise&lt;void>} - Sends a JSON response with a JWT token upon success, or an error message upon failure.
+ * @throws {422} If the email or password fields in the request body are missing.
+ * @throws {401} If the provided credentials (email/password) are incorrect.
+ * @throws {500} For any other unexpected server error.
+ */
+exports.login = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        // 1. Validation
+        if (!email || !password) {
+            return res.status(422).json({
+                success: false, errors: {
+                    email: 'Email is required',
+                    password: 'Password is required',
+                }
+            });
+        }
+
+        // 2. Find ALL users matching the email
+        const users = await userModel.find({ email: email });
+
+        // 3. Check if user exists
+        if (users.length === 0) {
+            return res.status(401).json({ message: 'Invalid email or password' });
+        }
+
+        // 4. Compare password
+        const isMatch = await bcryptjs.compare(password, users[0].password);
+        if (!isMatch) {
+            return res.status(401).json({ message: 'Invalid email or password' });
+        }
+
+        // 5. Generate Token
+        const user = users[0];
+        const expiresIn = '7d';
+        const token = jwt.sign(
+            { userId: user._id, fullName: user.fullName, role: user.role },
+            process.env.JWT_SECRET, // Should use the environment variable
+            { expiresIn }
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: 'Login successful',
+            token: token
+        })
+    } catch (error) {
+        errorHandling(error, req, res)
+    }
+};
+
+// ----------------------------------------------------------------------
+// REGISTER
+// ----------------------------------------------------------------------
+
+/**
+ * Asynchronous function to handle new user registration.
+ *
+ * @async
+ * @function register
+ * @memberof module:AuthController
+ * @param {object} req - Express request object. Expected to contain new user details in `req.body` (fullName, email, phone, password, role).
+ * @param {object} res - Express response object.
+ * @param {string} req.body.fullName - User fullname from user (Parent/Teacher).
+ * @param {string} req.body.email - Email address used for authentication.
+ * @param {string} req.body.phone - Phone number from user (Parent/Teacher).
+ * @param {string} req.body.password - User password for authentication.
+ * @param {string} req.body.role - User role for user leveling.
+ * @returns {Promise&lt;void>} - Sends a JSON response with the generated JWT token upon successful registration.
+ * @throws {500} If the email is already registered for the specified role.
+ * @throws {400} If Mongoose validation fails (e.g., missing required fields, invalid format).
+ */
+exports.register = async (req, res) => {
+    try {
+        // Create new user instance
+        const newUser = new userModel({
+            fullName: req.body.fullName,
+            email: req.body.email,
+            phone: req.body.phone,
+            password: req.body.password,
+            role: req.body.role
+        });
+
+        // Validate unique email per role
+        const findUser = await userModel.findOne({ email: req.body.email, role: req.body.role })
+        if (findUser) {
+            // Note: The status code 500 is typically used for server errors, 409 Conflict might be better here.
+            return res.status(500).json({ success: false, error: { email: 'Email is already in use' } });
+        }
+
+        // Validate model constraints before hashing
+        await newUser.validate()
+
+        // Hash password before saving
+        newUser.password = await bcryptjs.hash(req.body.password, 10);
+
+        // Save user to the database
+        await newUser.save();
+
+        // Generate JWT Token
+        const token = jwt.sign(
+            { fullName: newUser.fullName, userId: newUser._id, role: newUser.role },
+            clientSecret,
+            { expiresIn: '7d' }
+        );
+
+        // Send successful response
+        res.status(201).json({
+            success: true,
+            message: "User registered successfully",
+            token: token
+        });
+
+    } catch (error) {
+        errorHandling(error, req, res)
+    }
+};
+
+// ----------------------------------------------------------------------
+// LOGOUT
+// ----------------------------------------------------------------------
+
+/**
+ * Function to handle user logout.
+ * Note: For JWT-based APIs, "logout" usually instructs the client to discard the token.
+ *
+ * @function logout
+ * @memberof module:AuthController
+ * @param {object} req - Express request object.
+ * @param {object} res - Express response object.
+ * @returns {void} - Sends a JSON response confirming successful logout.
+ */
+exports.logout = (req, res) => {
+    res.status(200).json({ success: true, message: "User logged out successfully" })
+}</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-AuthController.html">AuthController</a></li><li><a href="module-ChildsController.html">ChildsController</a></li><li><a href="module-ExerciseController.html">ExerciseController</a></li><li><a href="module-MaterialController.html">MaterialController</a></li><li><a href="module-QuestionBankController.html">QuestionBankController</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Thu Oct 23 2025 07:57:06 GMT+0700 (Western Indonesia Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

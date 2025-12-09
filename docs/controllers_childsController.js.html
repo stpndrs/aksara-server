@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: controllers/childsController.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: controllers/childsController.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const { errorHandling } = require("../helpers/errorHandling");
+const userModel = require("../models/userModel");
+const materialModel = require("../models/materialModel");
+const exerciseModel = require("../models/exerciseModel");
+
+/**
+ * Controller module for child management and relationship handling (Parent/Teacher).
+ * @module ChildsController 
+ */
+
+// ----------------------------------------------------------------------
+// INDEX
+// ----------------------------------------------------------------------
+
+/**
+ * Retrieves a list of children associated with the authenticated user (typically a Parent).
+ * * @async
+ * @function index
+ * @memberof module:ChildsController
+ * @param {object} req - Express request object. Assumes user ID is available via middleware in `req.user.userId`.
+ * @param {object} res - Express response object.
+ * @returns {Promise&lt;void>} - Sends a JSON response containing an array of child objects, each including the parent's full name.
+ * @returns {object} data.childs - Array of child data objects.
+ * @throws {500} If a server or database error occurs.
+ */
+exports.index = async (req, res) => {
+    try {
+        const user = await userModel.findById(req.user.userId)
+        const childs = []
+        for (const childId of user.childIds) {
+            let childData = await userModel.findById(childId);
+            const parent = await userModel.findById(childData.parentsId)
+            if (childData) {
+                childData = { childData, parentName: parent.fullName }
+                childs.push(childData);
+            }
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Successfully received data",
+            data: {
+                childs: childs
+            }
+        })
+    } catch (error) {
+        errorHandling(error, req, res)
+    }
+}
+
+// ----------------------------------------------------------------------
+// STORE (Create New Child by Parent)
+// ----------------------------------------------------------------------
+
+/**
+ * Creates and stores a new child user associated with the currently authenticated parent.
+ *
+ * @async
+ * @function store
+ * @memberof module:ChildsController
+ * @param {object} req - Express request object. Contains child details in `req.body` (fullName, isScreening, level) and parent ID in `req.user.userId`.
+ * @param {object} res - Express response object.
+ * @param {string} req.body.fullName - Child fullname for identity.
+ * @param {string} req.body.isScreening - Child isScreening for dyslexia screening status.
+ * @param {string} req.body.level - Child level for dyslexia level.
+ * @returns {Promise&lt;void>} - Sends a JSON response with the newly created child object.
+ * @returns {object} data - The newly created child user document.
+ * @throws {400} If validation of required child fields fails.
+ * @throws {500} If a database error occurs.
+ */
+exports.store = async (req, res) => {
+    try {
+        const newChild = new userModel({
+            fullName: req.body.fullName,
+            isScreening: req.body.isScreening,
+            level: req.body.level,
+        });
+
+        newChild.role = 3
+
+        // Generate random code
+        function generateRandomString(length) {
+            return Array.from({ length }, () => Math.random().toString(36)[2]).join('').toUpperCase();
+        }
+        newChild.code = generateRandomString(5)
+
+        // Validate
+        await newChild.validate(['fullName', 'isScreening', 'level'])
+
+        // Find parent
+        const findParent = await userModel.findById(req.user.userId);
+
+        // insert parent id to child
+        newChild.parentsId = findParent._id
+
+        // Simpan user ke database
+        await newChild.save({ validateBeforeSave: false });
+
+        // Insert child id to parent
+        findParent.childIds.push(newChild.id)
+        await findParent.save()
+
+
+        // Send response
+        res.status(201).json({
+            success: true,
+            message: "Successfully added new child",
+            data: newChild
+        });
+
+    } catch (error) {
+        errorHandling(error, req, res)
+    }
+}
+
+// ----------------------------------------------------------------------
+// INSERT (Teacher Adds Existing Child by Code)
+// ----------------------------------------------------------------------
+
+/**
+ * Allows a teacher (Role 1) to add an existing child to their roster using a unique child code.
+ *
+ * @async
+ * @function insert
+ * @memberof module:ChildsController
+ * @param {object} req - Express request object. Contains `req.body.code` (child's unique code) and teacher ID in `req.user.userId`.
+ * @param {object} res - Express response object.
+ * @returns {Promise&lt;void>} - Sends a JSON response confirming the successful addition of the student.
+ * @throws {400} If the authenticated user is not a teacher, the child is not found, or the child is already linked to the teacher/another teacher.
+ * @throws {422} If the required `code` field is missing from the request body.
+ */
+exports.insert = async (req, res) => {
+    try {
+        // find user
+        const teacher = await userModel.findOne({ _id: req.user.userId, role: 1 })
+
+        // check if teacher exists
+        if (!teacher) {
+            return res.status(400).json({
+                success: false,
+                message: 'Teacher not found'
+            })
+        }
+
+        // validation
+        if (!req.body.code) {
+            return res.status(422).json({
+                success: false,
+                message: 'Validation error',
+                errors: {
+                    code: 'Code is required'
+                }
+            })
+        }
+
+        const code = req.body.code
+
+        // find child data
+        const child = await userModel.findOne({ code: code })
+        if (!child) {
+            return res.status(400).json({
+                success: false,
+                message: 'Child not found'
+            })
+        }
+
+        // validate if child already linked
+        if (child.teacherId) {
+            if (child.teacherId.equals(teacher._id)) {
+                return res.status(400).json({ success: false, message: 'Child has already been added by you' })
+            }
+            return res.status(400).json({ success: false, message: 'Child already has a teacher' })
+        }
+
+
+        // Link teacher to child and vice versa
+        teacher.childIds.push(child._id)
+        child.teacherId = teacher._id
+
+        await teacher.save({ validateBeforeSave: false })
+        await child.save({ validateBeforeSave: false })
+
+        return res.status(201).json({
+            success: true,
+            message: 'Successfully added student'
+        })
+    } catch (error) {
+        errorHandling(error, req, res)
+    }
+}
+
+// ----------------------------------------------------------------------
+// SHOW (View Child Details)
+// ----------------------------------------------------------------------
+
+/**
+ * Retrieves detailed information for a single child, including their parent details, exercises, and materials.
+ *
+ * @async
+ * @function show
+ * @memberof module:ChildsController
+ * @param {object} req - Express request object. Contains the child's unique code in `req.params.code`.
+ * @param {object} res - Express response object.
+ * @returns {Promise&lt;void>} - Sends a JSON response containing the child's profile, parent, transformed exercises, and materials.
+ * @returns {object} data.child - The child's user document.
+ * @returns {object} data.parent - The parent's user document (Role 2).
+ * @returns {array} data.exercises - Transformed list of exercises with human-readable method names.
+ * @returns {array} data.materials - Transformed list of materials with human-readable method names.
+ * @throws {400} If the child is not found via the provided code.
+ * @throws {500} If a database or internal error occurs.
+ */
+exports.show = async (req, res) => {
+    try {
+        const child = await userModel.findOne({ code: req.params.code })
+        if (!child) return res.status(400).json({ success: false, message: 'Child not found' })
+        const parent = await userModel.findOne({ _id: child.parentsId, role: 2 })
+        const exercises = await exerciseModel.find({ childrenId: child._id })
+        const materials = await materialModel.find({ childrenId: child._id })
+
+        /**
+         * Helper function to map numeric exercise/material method to a string.
+         * @private
+         * @param {number} a - The numeric method code.
+         * @returns {string} - Human-readable method name.
+         */
+        function switchMethod(a) {
+            switch (a) {
+                case 1: return "Listening to audio";
+                case 2: return "Rewriting";
+                case 3: return "Reading";
+                case 4: return "Word ordering";
+                case 5: return "Rapid naming";
+                default: return "Other";
+            }
+        }
+
+        const transformedExercises = exercises.map((exercise) => {
+            const exerciseObject = exercise.toObject();
+            const { questions, ...restOfExercise } = exerciseObject;
+            const methodString = switchMethod(restOfExercise.method);
+            return {
+                ...restOfExercise,
+                method: methodString
+            };
+        });
+        const transformedMaterials = materials.map((material) => {
+            const materialObject = material.toObject();
+            const methodString = switchMethod(materialObject.method)
+            return {
+                ...materialObject,
+                method: methodString
+            };
+        })
+
+
+        const data = {
+            child: child,
+            parent: parent,
+            exercises: transformedExercises,
+            materials: transformedMaterials,
+        }
+
+        return res.status(200).json({ success: true, message: 'Successfully received data', data: data })
+    } catch (error) {
+        errorHandling(error, req, res)
+    }
+}
+
+// ----------------------------------------------------------------------
+// DESTROY (Delete Child and Unlink)
+// ----------------------------------------------------------------------
+
+/**
+ * Handles the deletion (soft delete) of a child and removal of their link from the associated Parent and Teacher (if applicable).
+ * * @async
+ * @function destroy
+ * @memberof module:ChildsController
+ * @param {object} req - Express request object. Contains the child's unique code in `req.params.code`.
+ * @param {object} res - Express response object.
+ * @returns {Promise&lt;void>} - Sends a JSON response confirming the successful deletion.
+ * @throws {400} If the child is not found via the provided code.
+ * @throws {500} If a database or internal error occurs during unlink/deletion.
+ */
+exports.destroy = async (req, res) => {
+    try {
+        const child = await userModel.findOne({ code: req.params.code })
+        if (!child) return res.status(400).json({ success: false, message: 'Child not found' })
+
+        // unlink from teacher
+        const teacher = await userModel.findById(child.teacherId)
+        if (teacher) {
+            teacher.childIds.pull(child._id); // Mongoose helper to remove ID from array
+            await teacher.save();
+        }
+
+        // unlink from parent
+        const parent = await userModel.findById(child.parentsId)
+        parent.childIds.pull(child._id); // Mongoose helper to remove ID from array
+        await parent.save();
+
+        // Perform soft delete only if user level is 2 (e.g., Parent who is deleting)
+        // NOTE: The code suggests req.user.level is used for authorization here.
+        if (req.user.level === 2) {
+            await userModel.delete({ _id: child._id }) // Assumes mongoose-delete is implemented
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Data successfully deleted",
+        })
+    } catch (error) {
+        errorHandling(error, req, res)
+    }
+}</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-AuthController.html">AuthController</a></li><li><a href="module-AuthMiddleware.html">AuthMiddleware</a></li><li><a href="module-AuthRoutes.html">AuthRoutes</a></li><li><a href="module-ChildsController.html">ChildsController</a></li><li><a href="module-ChildsRoutes.html">ChildsRoutes</a></li><li><a href="module-DBConfig.html">DBConfig</a></li><li><a href="module-ExerciseController.html">ExerciseController</a></li><li><a href="module-ExerciseModel.html">ExerciseModel</a></li><li><a href="module-ExercisesRoutes.html">ExercisesRoutes</a></li><li><a href="module-MainRouter.html">MainRouter</a></li><li><a href="module-MaterialController.html">MaterialController</a></li><li><a href="module-MaterialModel.html">MaterialModel</a></li><li><a href="module-MaterialsRoutes.html">MaterialsRoutes</a></li><li><a href="module-QuestionBankController.html">QuestionBankController</a></li><li><a href="module-QuestionBankModel.html">QuestionBankModel</a></li><li><a href="module-QuestionBankRoutes.html">QuestionBankRoutes</a></li><li><a href="module-UploadFileUtil.html">UploadFileUtil</a></li><li><a href="module-UserModel.html">UserModel</a></li></ul><h3>Namespaces</h3><ul><li><a href="module-MainRouter-v1.html">v1</a></li></ul><h3>Global</h3><ul><li><a href="global.html#calculateCharacterMatchScore">calculateCharacterMatchScore</a></li><li><a href="global.html#calculateSimilarity">calculateSimilarity</a></li><li><a href="global.html#host">host</a></li><li><a href="global.html#name">name</a></li><li><a href="global.html#processAudioToText">processAudioToText</a></li><li><a href="global.html#processImageToText">processImageToText</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Thu Oct 16 2025 14:45:14 GMT+0700 (Western Indonesia Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: exerciseController.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: exerciseController.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const md5 = require("md5")
+const userModel = require("../models/userModel")
+const exerciseModel = require("../models/exerciseModel")
+const { errorHandling } = require("../helpers/errorHandling")
+const questionBankModel = require("../models/questionBankModel")
+const aiService = require("../services/aiService");
+const { calculateSimilarity, calculateCharacterMatchScore } = require("../helpers/similarity")
+
+/**
+ * Controller module for exercise management (Teacher assigning, Child answering).
+ * @module ExerciseController
+ */
+
+// ----------------------------------------------------------------------
+// INDEX
+// ----------------------------------------------------------------------
+
+/**
+ * Retrieves a list of exercises assigned to a specific child.
+ *
+ * @async
+ * @function index
+ * @memberof module:ExerciseController
+ * @param {object} req - Express request object.
+ * @param {string} req.query.children - The ID of the child whose exercises are being requested.
+ * @param {object} res - Express response object.
+ * @returns {Promise&lt;void>} - Sends a JSON response containing an array of exercise objects.
+ * @returns {object} data - Array of exercise data objects.
+ * @throws {422} If the `children` query parameter is missing.
+ * @throws {400} If the specified child ID does not correspond to an existing student (Role 3).
+ * @throws {500} If a server or database error occurs.
+ */
+exports.index = async (req, res) => {
+    try {
+        const childrenId = req.query?.children
+
+        // Validation
+        if (!childrenId) {
+            return res.status(422).json({ success: false, message: 'Validation error', errors: { children: 'Harap memilih siswa terlebih dahulu' } })
+        }
+
+        // Check the child does'nt exist 
+        if (!await userModel.findOne({ _id: childrenId, role: 3 })) return res.status(400).json({ success: false, message: 'Siswa tidak ditemukan' })
+
+        // Find exercises data
+        const data = await exerciseModel.find({
+            childrenId: childrenId
+        })
+
+        // Send response
+        return res.status(200).json({
+            success: false,
+            message: 'Successfully received data',
+            data: data
+        })
+    } catch (error) {
+        errorHandling(error, req, res)
+    }
+}
+
+// ----------------------------------------------------------------------
+// STORE (Create New Exercise by Teacher)
+// ----------------------------------------------------------------------
+
+/**
+ * Creates a new exercise, assigns it to a specific child, and updates the Question Bank.
+ *
+ * @async
+ * @function store
+ * @memberof module:ExerciseController
+ * @param {object} req - Express request object.
+ * @param {string} req.body.childrenId - The ID of the child to assign the work to.
+ * @param {string} req.body.name - Name of the exercise.
+ * @param {string} req.body.description - Description of the exercise.
+ * @param {number} req.body.level - Level for the exercise (e.g., 1, 2, 3).
+ * @param {number} req.body.method - Method code for the exercise (e.g., 1=audio, 2=writing, etc.).
+ * @param {Array&lt;object>} req.body.questions - Array of question objects.
+ * @param {string} req.body.questions[].question - The content of the question.
+ * @param {string} req.body.questions[].key - The correct answer key for the question.
+ * @example &lt;caption>Example Request Body Structure (Simplified)&lt;/caption>
+ * {
+ * "childrenId": "user_id",
+ * "name": "Latihan Membaca A",
+ * "method": 3,
+ * "questions": [{"question": "What is A?", "key": "A"}, ...]
+ * }
+ * @returns {Promise&lt;void>} - Sends a JSON response with the newly created exercise document.
+ * @returns {object} data - The newly created exercise document.
+ * @throws {400} If the specified child is not found.
+ * @throws {422} If validation fails (e.g., missing required fields in exercise or questions).
+ * @throws {500} If a database error occurs.
+ */
+
+exports.store = async (req, res) => {
+    try {
+        const { childrenId, name, description, level, method, questions } = req.body
+
+        const newEx = new exerciseModel({
+            childrenId: childrenId,
+            name: name,
+            description: description,
+            level: level,
+            method: method,
+            questions: questions
+        })
+
+        await newEx.validate(['name', 'level', 'method', 'questions.code', 'questions.question', 'question.key'])
+
+        // Find child data
+        const child = await userModel.findOne({ _id: childrenId, role: 3 })
+        if (!child) {
+            return res.status(400).json({
+                success: false,
+                message: 'Anak tidak ditemukan'
+            })
+        }
+
+        const questionType = method == 5 ? 'path' : 'text'
+        const questionsArr = []
+
+        // Generate the md5 for unique key in questions bank
+        questions.forEach(async (element) => {
+            const q = element.question.replace(' ', '').toLowerCase()
+            const k = element.key.replace(' ', '').toLowerCase()
+            const code = md5(JSON.stringify({ question: q, key: k })) // &lt;- the combination
+
+            let question = {
+                code: code,
+                question: {
+                    type: questionType,
+                    value: element.question
+                },
+                key: element.key,
+            }
+
+            questionsArr.push(question)
+
+            // Check if already question in the bank
+            const qInBank = await questionBankModel.findOne({ code: code })
+            // Save the question to banks if not already in
+            if (!qInBank) {
+                new questionBankModel({
+                    level: level, // question level for
+                    method: method, // question method for
+                    code: code, // unique code 
+                    question: {
+                        type: questionType,
+                        value: element.question
+                    },
+                    key: element.key, // answer key
+                }).save()
+            }
+        });
+
+        newEx.questions = questionsArr // push the question into questionsArr (for send back in response)
+
+        // save
+        await newEx.save({ validateBeforeSave: false })
+
+        return res.status(201).json({
+            success: true,
+            message: 'Berhasil menambahkan latihan baru',
+            data: newEx
+        })
+    } catch (error) {
+        errorHandling(error, req, res)
+    }
+}
+
+// ----------------------------------------------------------------------
+// SHOW
+// ----------------------------------------------------------------------
+
+/**
+ * Retrieves a single exercise document by ID, hiding the answer key from the response.
+ *
+ * @async
+ * @function show
+ * @memberof module:ExerciseController
+ * @param {object} req - Express request object. Contains the exercise ID in `req.params.id`.
+ * @param {object} res - Express response object.
+ * @returns {Promise&lt;void>} - Sends a JSON response with the exercise details, method label, and questions (without the key).
+ * @returns {object} data - Exercise document with transformed method and questions.
+ * @throws {400} If the exercise data is not found.
+ * @throws {500} If a server or database error occurs.
+ */
+exports.show = async (req, res) => {
+    try {
+        const data = await exerciseModel.findById(req.params.id).lean();
+
+        if (!data) {
+            return res.status(400).json({ success: false, message: 'Latihan tidak ditemukan' });
+        }
+
+        /**
+         * Helper function to map numeric exercise/material method to a string (Indonesian).
+         * @private
+         * @param {number} a - The numeric method code.
+         * @returns {string} - Human-readable method name.
+         */
+        function switchMethod(a) {
+            switch (a) {
+                case 1: return "Mendengar audio";
+                case 2: return "Menulis ulang";
+                case 3: return "Membaca";
+                case 4: return "Mengurutkan kata";
+                case 5: return "Menebak cepat";
+                default: return "Lainnya";
+            }
+        }
+
+        // Remove the answer key before sending to the client
+        const questionsWithoutKey = data.questions.map((q) => {
+            const { key, ...question } = q;
+            return question;
+        });
+
+        const responseData = {
+            ...data,
+            methodLabel: switchMethod(data.method),
+            questions: questionsWithoutKey
+        };
+
+        return res.json({ success: true, message: 'Success retrieved data', data: responseData });
+
+    } catch (error) {
+        errorHandling(error, req, res);
+    }
+}
+
+// ----------------------------------------------------------------------
+// UPDATE (Update exercise by exercise id's)
+// ----------------------------------------------------------------------
+/**
+ * Handles the update of a exercise data
+ * * @async
+ * @function update
+ * @memberof module:ExerciseController
+ * @param {object} req - Express request object.
+ * @param {string} req.body.childrenId - The ID of the child to assign the work to.
+ * @param {string} req.body.name - Name of the exercise.
+ * @param {string} req.body.description - Description of the exercise.
+ * @param {number} req.body.level - Level for the exercise (e.g., 1, 2, 3).
+ * @param {number} req.body.method - Method code for the exercise (e.g., 1=audio, 2=writing, etc.).
+ * @param {Array&lt;object>} req.body.questions - Array of question objects.
+ * @param {string} req.body.questions[].question - The content of the question.
+ * @param {string} req.body.questions[].key - The correct answer key for the question.
+ * @returns {promise&lt;void>} - Sens a JSON response with the newly edited exercise document.
+ * @returns {object} data - The newly edited exercise document.
+ * @throws {400} If the specified or the exercise are not found
+ * @throws {422} If a Mongoose validation fails (e.g., missing required body fields).
+ * @throws {500} If a server or database error occurs.
+ */
+exports.update = async (req, res) => {
+    try {
+        const { name, description, level, method, questions } = req.body
+
+        const exercise = await exerciseModel.findById(req.params.id)
+        if (!exercise) return res.status(400).json({ success: false, message: 'Latihan tidak ditemukan' })
+
+        exercise.name = name
+        exercise.description = description
+        exercise.level = level
+        exercise.method = method
+        exercise.questions = questions
+
+        await exercise.validate(['name', 'level', 'method', 'questions.code', 'questions.question', 'question.key'])
+
+        const questionType = method == 5 ? 'path' : 'text'
+        const questionsArr = []
+
+        // Generate the md5 for unique key in questions bank
+        questions.forEach(async (element) => {
+            const q = element.question.replace(' ', '').toLowerCase()
+            const k = element.key.replace(' ', '').toLowerCase()
+            const code = md5(JSON.stringify({ question: q, key: k })) // &lt;- the combination
+
+            let question = {
+                code: code,
+                question: {
+                    type: questionType,
+                    value: element.question
+                },
+                key: element.key,
+            }
+
+            questionsArr.push(question)
+
+            // Check if already question in the bank
+            const qInBank = await questionBankModel.findOne({ code: code })
+            // Save the question to banks if not already in
+            if (!qInBank) {
+                new questionBankModel({
+                    level: level, // question level for
+                    method: method, // question method for
+                    code: code, // unique code 
+                    question: {
+                        type: questionType,
+                        value: element.question
+                    },
+                    key: element.key, // answer key
+                }).save()
+            }
+        });
+
+        exercise.questions = questionsArr // push the question into questionsArr (for send back in response)
+
+        // save
+        await exercise.save({ validateBeforeSave: false })
+
+        return res.status(201).json({
+            success: true,
+            message: 'Latihan berhasil diupdate',
+            data: exercise
+        })
+    } catch (error) {
+        errorHandling(error, req, res)
+    }
+}
+
+// ----------------------------------------------------------------------
+// ANSWER
+// ----------------------------------------------------------------------
+
+/**
+ * Processes a child's submitted answers, transcribes file input (audio/image) using AI, calculates the score dynamically, and updates the exercise document.
+ *
+ * @async
+ * @function answer
+ * @memberof module:ExerciseController
+ * @param {object} req - Express request object.
+ * @param {string} req.body.quizId - The ID of the exercise being answered.
+ * @param {Array&lt;object>} req.body.answers - Array of submitted answers.
+ * @param {string} req.body.answers[].questionId - The ID of the question being answered.
+ * @param {string} req.body.answers[].answer - The base64 file content (audio or image).
+ * @param {string} req.body.answers[].fileType - The MIME type of the file (e.g., 'image/jpeg', 'audio/wav').
+ * @param {number} req.body.answers[].duration - The duration of the recording/time taken to answer.
+ * @returns {Promise&lt;void>} - Sends a JSON response with the updated exercise document, including the calculated points.
+ * @returns {object} data - The updated exercise document containing the final point score.
+ * @throws {404} If the specified exercise (`quizId`) is not found.
+ * @throws {500} If AI transcription fails, database update fails, or other server errors occur.
+ */
+exports.answer = async (req, res) => {
+    try {
+        const { quizId, answers } = req.body;
+
+        const exercise = await exerciseModel.findById(quizId);
+        if (!exercise) {
+            return res.status(404).json({ success: false, message: 'Exercise not found' });
+        }
+
+        let totalPoints = 0;
+
+        // looping the answers
+        for (const ans of answers) {
+            // Find the question (between question from user ids and question from exercises db)
+            const originalQuestion = exercise.questions.find(q => q._id.toString() === ans.questionId);
+            if (!originalQuestion) continue; // if no one, continue
+
+            // make sure the content is base64
+            const base64Content = ans.answer.split(',')[1] || ans.answer;
+            let transcribedText = '';
+
+            // AI Transcription (Image or Audio)
+            if (ans.fileType.startsWith('image/')) {
+                transcribedText = await aiService.processImageToText(base64Content);
+            } else if (ans.fileType.startsWith('audio/')) {
+                transcribedText = await aiService.processAudioToText(base64Content);
+            }
+
+            // Dynamic Scoring Logic
+            let score = 0;
+            if (exercise.method === 3) {
+                // Method 3 (Reading) uses Character Match Score
+                score = calculateCharacterMatchScore(originalQuestion.key, transcribedText);
+            } else {
+                // Other methods use Levenshtein Similarity
+                score = calculateSimilarity(originalQuestion.key, transcribedText);
+            }
+
+            totalPoints += score;
+
+            // Update sub-document
+            const questionToUpdate = exercise.questions.id(ans.questionId);
+
+            // update the answers key (in questions data)
+            if (questionToUpdate) {
+                let answerToUpdate = {
+                    answer: {
+                        file: ans.answer,
+                        text: transcribedText
+                    },
+                    similarityPoint: score.toFixed(2),
+                    timeAnswered: new Date(),
+                    duration: ans.duration
+                }
+
+                questionToUpdate.answers.push(answerToUpdate)
+            }
+
+        }
+
+        // Calculate final score
+        exercise.point = (totalPoints / exercise.questions.length).toFixed(2);
+
+
+        await exercise.save();
+
+        return res.json({
+            success: true,
+            message: 'Answers processed successfully',
+            data: exercise
+        });
+
+    } catch (error) {
+        errorHandling(error, req, res);
+    }
+};</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-AuthController.html">AuthController</a></li><li><a href="module-ChildsController.html">ChildsController</a></li><li><a href="module-ExerciseController.html">ExerciseController</a></li><li><a href="module-MaterialController.html">MaterialController</a></li><li><a href="module-QuestionBankController.html">QuestionBankController</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Thu Oct 23 2025 07:57:06 GMT+0700 (Western Indonesia Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

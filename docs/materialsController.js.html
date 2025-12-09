@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: materialsController.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: materialsController.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const materialModel = require("../models/materialModel")
+const userModel = require("../models/userModel")
+const { errorHandling } = require('../helpers/errorHandling')
+const removeFile = require("../utils/removeFile")
+
+/**
+ * Controller module for managing learning materials (assigned by Teacher).
+ * @module MaterialController
+ */
+
+// ----------------------------------------------------------------------
+// INDEX
+// ----------------------------------------------------------------------
+
+/**
+ * Retrieves a list of learning materials assigned to a specific child.
+ *
+ * @async
+ * @function index
+ * @memberof module:MaterialController
+ * @param {object} req - Express request object.
+ * @param {string} req.query.children - The ID of the child (Role 3) whose materials are being requested.
+ * @param {object} res - Express response object.
+ * @returns {Promise&lt;void>} - Sends a JSON response containing an array of material objects.
+ * @returns {object} data - Array of material data objects.
+ * @throws {422} If the `children` query parameter is missing.
+ * @throws {400} If the specified child ID does not correspond to an existing student (Role 3).
+ * @throws {500} If a server or database error occurs.
+ */
+exports.index = async (req, res) => {
+    try {
+        const childrenId = req.query?.children
+
+        // Validation
+        if (!childrenId) {
+            return res.status(422).json({ success: false, message: 'Validation error', errors: { children: 'Harap memilih siswa terlebih dahulu' } })
+        }
+
+        // Check if child 
+        if (!await userModel.findOne({ _id: childrenId, role: 3 })) return res.status(400).json({ success: false, message: 'Siswa tidak ditemukan' })
+
+        // Find materials by childID
+        const data = await materialModel.find({
+            childrenId: childrenId
+        })
+
+        return res.status(200).json({
+            success: true,
+            message: 'Successfully received data',
+            data: data
+        })
+    } catch (error) {
+        errorHandling(error, req, res)
+    }
+}
+
+// ----------------------------------------------------------------------
+// STORE (Create New Material)
+// ----------------------------------------------------------------------
+
+/**
+ * Creates and stores a new learning material, assigning it to a specific child.
+ * Handles file uploads (images) and optional external links.
+ *
+ * @async
+ * @function store
+ * @memberof module:MaterialController
+ * @param {object} req - Express request object.
+ * @param {string} req.body.childrenId - The ID of the child to assign the material to.
+ * @param {string} req.body.title - Title of the material.
+ * @param {string} req.body.description - Description of the material.
+ * @param {number} req.body.level - Level for the material (e.g., 1, 2, 3).
+ * @param {number} req.body.method - Method code for the material (e.g., 1=audio, 2=writing, etc.).
+ * @param {string} [req.body.link] - Optional external link for the material.
+ * @param {Array&lt;object>} [req.files] - Array of uploaded files (images) handled by multer.
+ * @returns {Promise&lt;void>} - Sends a JSON response with the newly created material document.
+ * @returns {object} data - The newly created material document.
+ * @throws {400} If the specified child is not found.
+ * @throws {422} If Mongoose validation fails (e.g., missing required body fields).
+ * @throws {500} If a server or database error occurs.
+ */
+exports.store = async (req, res) => {
+    try {
+        const newMaterial = new materialModel({
+            childrenId: req.body.childrenId,
+            title: req.body.title,
+            description: req.body.description,
+            level: req.body.level,
+            method: req.body.method
+        })
+
+        // Check if child 
+        if (!await userModel.findOne({ _id: req.body.childrenId, role: 3 })) return res.status(400).json({ success: false, message: 'Siswa tidak ditemukan' })
+
+        // validation
+        await newMaterial.validate()
+
+        // save images path
+        if (req.files.length > 0) {
+            newMaterial.images = []
+            req.files.forEach(element => {
+                // Assuming `element.filename` is provided by multer
+                const path = `storage/material/${element.filename}`
+                newMaterial.images.push(path)
+            });
+        }
+
+        if (req.body.link) newMaterial.link = req.body.link
+
+        await newMaterial.save()
+
+        return res.status(201).json({
+            success: true,
+            message: 'Successfully create data',
+            data: newMaterial
+        })
+    } catch (error) {
+        errorHandling(error, req, res)
+    }
+}
+
+// ----------------------------------------------------------------------
+// SHOW (Detail of the Material)
+// ----------------------------------------------------------------------
+
+/**
+ * Retrieves a single material document by ID
+ * 
+ * @async
+ * @function show
+ * @memberof module:MaterialController
+ * @param {object} req - Express request object. Contains the exercise ID in `req.params.id`
+ * @param {object} res - Express response object
+ * @returns {Promise&lt;void>} - Sens a JSON response with the material details
+ * @returns {object} data - Material document with images and/or link tutorial
+ * @throws {400} If the material data is not found.
+ * @throws {500} If a server or database error occurs.
+ */
+exports.show = async (req, res) => {
+    try {
+        const data = await materialModel.findById(req.params.id)
+
+        if (!data) return res.status(400).json({ success: false, message: 'Materi tidak ditemukan' })
+
+        return res.json({ success: true, message: 'Success retrieved data', data: data })
+    } catch (error) {
+        errorHandling(error, req, res)
+    }
+}
+
+// ----------------------------------------------------------------------
+// UPDATE (Update material by material id's)
+// ----------------------------------------------------------------------
+/**
+ * Handles the update of a material data
+ * * @async
+ * @function update
+ * @memberof module:MaterialController
+ * @param {object} req - Express request object. 
+ * @param {string} req.body.childrenId - The ID of the child to assign the material to.
+ * @param {string} req.body.title - Title of the material.
+ * @param {string} req.body.description - Description of the material.
+ * @param {number} req.body.level - Level for the material (e.g., 1, 2, 3).
+ * @param {number} req.body.method - Method code for the material (e.g., 1=audio, 2=writing, etc.).
+ * @param {string} [req.body.link] - Optional external link for the material.
+ * @param {Array&lt;object>} [req.files] - Array of uploaded files (images) handled by multer.
+ * @returns {promise&lt;void>} - Sends a JSON response with the newly edited material document.
+ * @returns {object} data - The newly edited material document.
+ * @throws {400} If the specified child is not found.
+ * @throws {422} If Mongoose validation fails (e.g., missing required body fields).
+ * @throws {500} If a server or database error occurs.
+*/
+exports.update = async (req, res) => {
+    try {
+
+        const { childrenId, title, description, level, method } = req.body
+
+        const data = await materialModel.findById(req.params.id)
+
+        // Check if data
+        if (!data) return res.status(400).json({ success: false, message: "Material not found" });
+
+        // Check if child 
+        if (!await userModel.findOne({ _id: req.body.childrenId, role: 3 })) return res.status(400).json({ success: false, message: 'Siswa tidak ditemukan' })
+
+        data.childrenId = childrenId
+        data.title = title
+        data.description = description
+        data.level = level
+        data.method = method
+
+        if (req.body.link) data.link = req.body.link
+
+        // save images path
+        if (req.files &amp;&amp; req.files.length > 0) {
+            data.images.forEach(path => {
+                removeFile(path)
+            });
+
+            data.images = []
+            req.files.forEach(element => {
+                // Assuming `element.filename` is provided by multer
+                const path = `storage/material/${element.filename}`
+                data.images.push(path)
+            });
+        }
+
+        const updatedData = await data.save()
+
+        res.status(200).json({
+            success: true,
+            message: 'Materi berhasil diupdate!',
+            data: updatedData
+        })
+    } catch (error) {
+        errorHandling(error, req, res)
+    }
+}
+
+// ----------------------------------------------------------------------
+// DESTROY (Soft delete material)
+// ----------------------------------------------------------------------
+
+/**
+ * Handles the deletion (soft delete) of a material
+ * * @async
+ * @function destroy
+ * @memberof module:MaterialController
+ * @param {object} req - Express request object. Contains the id's from the data in `req.params.id`.
+ * @param {object} res - Express response object.
+ * @returns {Promise&lt;void>} - Sends a JSON response confirming the successful deletion.
+ * @throws {400} If the data is not found via the id
+ * @throws {500} If a database or internal error.
+ */
+exports.delete = async (req, res) => {
+    try {
+        const data = await materialModel.findById(req.params.id)
+
+        if (!data) return res.status(400).json({ success: false, message: 'Material not found' })
+
+        // Using soft delete
+        await materialModel.delete({ _id: data._id })
+
+        res.status(200).json({
+            success: true,
+            message: "Materi successfully deleted"
+        })
+    } catch (error) {
+        errorHandling(error, req, res)
+    }
+}</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-AuthController.html">AuthController</a></li><li><a href="module-ChildsController.html">ChildsController</a></li><li><a href="module-ExerciseController.html">ExerciseController</a></li><li><a href="module-MaterialController.html">MaterialController</a></li><li><a href="module-QuestionBankController.html">QuestionBankController</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Thu Oct 23 2025 07:57:06 GMT+0700 (Western Indonesia Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

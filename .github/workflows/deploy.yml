@@ -1,0 +1,38 @@
+name: Deploy Express Backend
+
+# Memicu hanya saat push ke branch 'main'
+on:
+  push:
+    branches:
+      - main 
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: SSH and Deploy
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.VPS_SERVER }}
+        username: ${{ secrets.VPS_USER }}
+        key: ${{ secrets.VPS_SSH_KEY }}
+
+        # Perintah yang akan dijalankan di VPS
+        script: |
+          # Masuk ke direktori Express
+          cd /var/www/leksigo-server
+
+          # Tarik perubahan terbaru
+          echo "Pulling latest code..."
+          git pull origin main
+
+          # Install dependencies
+          echo "Installing packages..."
+          npm install
+
+          # Restart service-nya
+          echo "Restarting Express service..."
+          sudo systemctl restart express-api
+
+          echo "Deploy Backend Selesai!"

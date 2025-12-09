@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: helpers/similarity.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: helpers/similarity.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>// src/helpers/similarity.js
+const natural = require('natural');
+
+/**
+ * Menghitung persentase kemiripan antara dua string menggunakan Levenshtein Distance.
+ * @param {string} stringA Teks asli (jawaban yang benar).
+ * @param {string} stringB Teks yang akan dibandingkan (hasil dari AI).
+ * @returns {number} Skor kemiripan dari 0 hingga 100.
+ */
+exports.calculateSimilarity = (stringA, stringB) => {
+    if (!stringA || !stringB) return 0;
+
+    // 1. Normalisasi: Ubah ke huruf kecil dan hapus tanda baca umum.
+    // Ini penting agar perbandingan lebih adil.
+    const a = stringA.toLowerCase().replace(/[.,\/#!$%\^&amp;\*;:{}=\-_`~()]/g, "").trim();
+    const b = stringB.toLowerCase().replace(/[.,\/#!$%\^&amp;\*;:{}=\-_`~()]/g, "").trim();
+
+    // 2. Hitung jarak Levenshtein
+    const distance = natural.LevenshteinDistance(a, b);
+
+    // 3. Hitung panjang string yang lebih panjang
+    const longerLength = Math.max(a.length, b.length);
+
+    if (longerLength === 0) return 100; // Jika keduanya string kosong
+
+    // 4. Ubah jarak menjadi skor persentase kemiripan
+    const similarity = (1 - (distance / longerLength)) * 100;
+
+    return similarity;
+};
+
+// ✨ FUNGSI BARU KHUSUS UNTUK METHOD 3 ✨
+/**
+ * Menghitung skor berdasarkan persentase karakter yang cocok.
+ * @param {string} stringA Teks asli (kunci jawaban).
+ * @param {string} stringB Teks yang akan dibandingkan (hasil transkripsi).
+ * @returns {number} Skor dari 0 hingga 100.
+ */
+exports.calculateCharacterMatchScore = (stringA, stringB) => {
+    if (!stringA || !stringB) return 0;
+
+    // 1. Normalisasi: Hapus spasi berlebih dan ubah ke huruf kecil.
+    // Tanda baca mungkin penting di sini, jadi kita tidak hapus.
+    const a = stringA.toLowerCase().trim();
+    const b = stringB.toLowerCase().trim();
+
+    const longerLength = Math.max(a.length, b.length);
+    if (longerLength === 0) return 100;
+
+    let correctChars = 0;
+    // 2. Bandingkan karakter satu per satu
+    for (let i = 0; i &lt; longerLength; i++) {
+        // Jika karakter di posisi yang sama cocok, atau jika salah satu string sudah habis
+        // (menghitung spasi sebagai "benar" jika jawaban lebih pendek/panjang)
+        if (a[i] === b[i]) {
+            correctChars++;
+        }
+    }
+
+    // 3. Hitung persentase karakter yang benar
+    const score = (correctChars / longerLength) * 100;
+    return score;
+};</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-AuthController.html">AuthController</a></li><li><a href="module-AuthMiddleware.html">AuthMiddleware</a></li><li><a href="module-AuthRoutes.html">AuthRoutes</a></li><li><a href="module-ChildsController.html">ChildsController</a></li><li><a href="module-ChildsRoutes.html">ChildsRoutes</a></li><li><a href="module-DBConfig.html">DBConfig</a></li><li><a href="module-ExerciseController.html">ExerciseController</a></li><li><a href="module-ExerciseModel.html">ExerciseModel</a></li><li><a href="module-ExercisesRoutes.html">ExercisesRoutes</a></li><li><a href="module-MainRouter.html">MainRouter</a></li><li><a href="module-MaterialController.html">MaterialController</a></li><li><a href="module-MaterialModel.html">MaterialModel</a></li><li><a href="module-MaterialsRoutes.html">MaterialsRoutes</a></li><li><a href="module-QuestionBankController.html">QuestionBankController</a></li><li><a href="module-QuestionBankModel.html">QuestionBankModel</a></li><li><a href="module-QuestionBankRoutes.html">QuestionBankRoutes</a></li><li><a href="module-UploadFileUtil.html">UploadFileUtil</a></li><li><a href="module-UserModel.html">UserModel</a></li></ul><h3>Namespaces</h3><ul><li><a href="module-MainRouter-v1.html">v1</a></li></ul><h3>Global</h3><ul><li><a href="global.html#calculateCharacterMatchScore">calculateCharacterMatchScore</a></li><li><a href="global.html#calculateSimilarity">calculateSimilarity</a></li><li><a href="global.html#host">host</a></li><li><a href="global.html#name">name</a></li><li><a href="global.html#processAudioToText">processAudioToText</a></li><li><a href="global.html#processImageToText">processImageToText</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Thu Oct 16 2025 14:45:14 GMT+0700 (Western Indonesia Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

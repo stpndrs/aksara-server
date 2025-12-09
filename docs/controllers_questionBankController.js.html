@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: controllers/questionBankController.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: controllers/questionBankController.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const md5 = require("md5")
+const userModel = require("../models/userModel")
+const exerciseModel = require("../models/exerciseModel")
+const { errorHandling } = require("../helpers/errorHandling")
+const questionBankModel = require("../models/questionBankModel")
+
+/**
+ * Controller module for managing the central Question Bank.
+ * @module QuestionBankController
+ */
+
+// ----------------------------------------------------------------------
+// INDEX
+// ----------------------------------------------------------------------
+
+/**
+ * Retrieves a list of questions from the Question Bank filtered by level and learning method.
+ *
+ * @async
+ * @function index
+ * @memberof module:QuestionBankController
+ * @param {object} req - Express request object.
+ * @param {string} req.query.level - The required educational level for filtering questions.
+ * @param {string} req.query.method - The required learning method/type for filtering questions.
+ * @param {object} res - Express response object.
+ * @returns {Promise&lt;void>} - Sends a JSON response containing an array of question bank objects.
+ * @returns {object} data - Array of question bank data objects matching the filter criteria.
+ * @throws {422} If the `level` or `method` query parameters are missing (Validation Error).
+ * @throws {500} If a server or database error occurs during data retrieval.
+ */
+exports.index = async (req, res) => {
+    try {
+        // Validation
+        const errors = {}
+        if (!req.query?.level) errors.level = 'Harap memilih level'
+        if (!req.query?.method) errors.method = 'Harap memilih metode pembelajaran'
+        if (Object.keys(errors).length > 0) {
+            // Jika ada, kirim satu respons berisi semua error
+            return res.status(422).json({
+                success: false,
+                message: 'Validation error',
+                errors: errors // Kirim semua error yang terkumpul
+            });
+        }
+
+        // Find data
+        const data = await questionBankModel.find({ level: req.query.level, method: req.query.method });
+
+        return res.status(200).json({ // Mengubah 201 menjadi 200 karena ini adalah operasi GET/read data.
+            success: true,
+            message: 'Successfully received data',
+            data: data
+        })
+    } catch (error) {
+        errorHandling(error, req, res)
+    }
+}</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-AuthController.html">AuthController</a></li><li><a href="module-AuthMiddleware.html">AuthMiddleware</a></li><li><a href="module-AuthRoutes.html">AuthRoutes</a></li><li><a href="module-ChildsController.html">ChildsController</a></li><li><a href="module-ChildsRoutes.html">ChildsRoutes</a></li><li><a href="module-DBConfig.html">DBConfig</a></li><li><a href="module-ExerciseController.html">ExerciseController</a></li><li><a href="module-ExerciseModel.html">ExerciseModel</a></li><li><a href="module-ExercisesRoutes.html">ExercisesRoutes</a></li><li><a href="module-MainRouter.html">MainRouter</a></li><li><a href="module-MaterialController.html">MaterialController</a></li><li><a href="module-MaterialModel.html">MaterialModel</a></li><li><a href="module-MaterialsRoutes.html">MaterialsRoutes</a></li><li><a href="module-QuestionBankController.html">QuestionBankController</a></li><li><a href="module-QuestionBankModel.html">QuestionBankModel</a></li><li><a href="module-QuestionBankRoutes.html">QuestionBankRoutes</a></li><li><a href="module-UploadFileUtil.html">UploadFileUtil</a></li><li><a href="module-UserModel.html">UserModel</a></li></ul><h3>Namespaces</h3><ul><li><a href="module-MainRouter-v1.html">v1</a></li></ul><h3>Global</h3><ul><li><a href="global.html#calculateCharacterMatchScore">calculateCharacterMatchScore</a></li><li><a href="global.html#calculateSimilarity">calculateSimilarity</a></li><li><a href="global.html#host">host</a></li><li><a href="global.html#name">name</a></li><li><a href="global.html#processAudioToText">processAudioToText</a></li><li><a href="global.html#processImageToText">processImageToText</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Thu Oct 16 2025 14:45:14 GMT+0700 (Western Indonesia Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
