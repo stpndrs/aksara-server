@@ -48,14 +48,14 @@ const atlasDbName = process.env.DB_ATLAS_NAME
  * @description Attempts to connect to MongoDB using the constructed connection string.
  * @returns {Promise<void>} Logs "MongoDB connected" on success or the error message on failure.
  */
-mongoose
-    // Connection string built from environment variables
-    .connect(`mongodb://${host}:27017/${name}`, {})
-    .then(() => console.log("MongoDB connected"))
-    .catch(err => console.log("Error while connecting to db " + err));
-
 // mongoose
 //     // Connection string built from environment variables
-//     .connect(`mongodb+srv://${atlasUsername}:${atlasPassword}@${atlasHost}/${atlasDbName}?appName=Cluster0`, {})
+//     .connect(`mongodb://${host}:27017/${name}`, {})
 //     .then(() => console.log("MongoDB connected"))
 //     .catch(err => console.log("Error while connecting to db " + err));
+
+mongoose
+    // Connection string built from environment variables
+    .connect(`mongodb+srv://${atlasUsername}:${atlasPassword}@${atlasHost}/${atlasDbName}?appName=Cluster0`, {})
+    .then(() => console.log("MongoDB connected"))
+    .catch(err => console.log("Error while connecting to db " + err));

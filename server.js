@@ -8,7 +8,7 @@ const router = require('./src/routes')
 // Middleware
 const corsOptions = {
     // 1. Ganti '*' dengan URL frontend Anda yang spesifik
-    origin: ['http://localhost:5173', 'https://leksigo.com'],
+    origin: ['http://localhost:5173', 'https://aksaralearning.com'],
 
     // 2. Izinkan server untuk menerima dan memproses kredensial
     credentials: true,
