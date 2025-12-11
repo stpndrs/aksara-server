@@ -68,7 +68,7 @@ exports.index = async (req, res) => {
             return res.status(422).json({ success: false, message: 'Validation error', errors: { children: 'Please select the child first' } });
         }
 
-        if (!await userModel.findOne({ _id: childrenId, role: 3 })) {
+        if (!await userModel.findOne({ _id: childrenId, role: 2 })) {
             return res.status(400).json({ success: false, message: 'Child not found' });
         }
 
@@ -139,7 +139,6 @@ exports.storeExercise = async (req, res) => {
  * @param {object} req - Express request object.
  * @param {string} req.body.exerciseId - Parent Exercise ID.
  * @param {string} req.body.name - Quiz title.
- * @param {number} req.body.level - Difficulty level.
  * @param {Array} req.body.questions - List of questions.
  * @example 
  * // questions example:
@@ -153,7 +152,7 @@ exports.storeExerciseQuiz = async (req, res) => {
     try {
         if (req.user.role !== 1) return res.status(403).json({ success: false, message: 'Forbidden access' });
 
-        const { exerciseId, name, description, level, questions } = req.body;
+        const { exerciseId, name, description, questions } = req.body;
 
         let errors = {};
 
@@ -163,12 +162,6 @@ exports.storeExerciseQuiz = async (req, res) => {
 
         if (!name || name.trim() === "") {
             errors.name = "Nama Quiz wajib diisi";
-        }
-
-        if (!level) {
-            errors.level = "Level wajib diisi";
-        } else if (isNaN(level)) {
-            errors.level = "Level harus berupa angka";
         }
 
         if (!questions || !Array.isArray(questions) || questions.length === 0) {
@@ -230,7 +223,7 @@ exports.storeExerciseQuiz = async (req, res) => {
             const qInBank = await questionBankModel.findOne({ code: code });
             if (!qInBank) {
                 await new questionBankModel({
-                    level, method, code, key: item.key,
+                    method, code, key: item.key,
                     question: { type: questionType, value: qVal }
                 }).save();
             }
@@ -242,7 +235,7 @@ exports.storeExerciseQuiz = async (req, res) => {
         }));
 
         exercise.quiz.push({
-            name, description, level,
+            name, description,
             date: new Date(),
             questions: questionsArr
         });
@@ -381,7 +374,7 @@ exports.updateExerciseQuiz = async (req, res) => {
         // 2. Ambil Data dari Params dan Body
         // Asumsi: URL endpoint adalah /exercise/:id/quiz/:quizId
 
-        const { exerciseId, quizId, name, description, level, questions } = req.body;
+        const { exerciseId, quizId, name, description, questions } = req.body;
 
         let errors = {};
 
@@ -389,12 +382,6 @@ exports.updateExerciseQuiz = async (req, res) => {
 
         if (!name || name.trim() === "") {
             errors.name = "Nama Quiz wajib diisi";
-        }
-
-        if (!level) {
-            errors.level = "Level wajib diisi";
-        } else if (isNaN(level)) {
-            errors.level = "Level harus berupa angka";
         }
 
         if (!questions || !Array.isArray(questions) || questions.length === 0) {
@@ -470,7 +457,7 @@ exports.updateExerciseQuiz = async (req, res) => {
             const qInBank = await questionBankModel.findOne({ code: code });
             if (!qInBank) {
                 await new questionBankModel({
-                    level, method, code, key: item.key,
+                    method, code, key: item.key,
                     question: { type: questionType, value: qVal }
                 }).save();
             }
@@ -484,7 +471,6 @@ exports.updateExerciseQuiz = async (req, res) => {
         // 6. Update Field pada Sub-document Quiz
         currentQuiz.name = name;
         currentQuiz.description = description;
-        currentQuiz.level = level;
         currentQuiz.questions = questionsArr;
         // Opsi: Update tanggal jika diperlukan
         // currentQuiz.date = new Date(); 
@@ -639,7 +625,7 @@ exports.visibilty = async (req, res) => {
 // Generate exercise
 exports.generate = async (req, res) => {
     try {
-        const { quantity, difficulty, method, exerciseId } = req.body;
+        const { quantity, method, exerciseId } = req.body;
 
         const quizHistory = await questionBankModel.find();
 
@@ -650,24 +636,22 @@ exports.generate = async (req, res) => {
         let assessment = [] // dari jawaban anak
         exercises.forEach(element => {
             element.quiz.forEach((item) => {
-                if (item.level == difficulty) {
-                    item.questions.forEach(q => {
-                        const answer = item.answers.find(a => a.questionId.toString() === q._id.toString());
+                item.questions.forEach(q => {
+                    const answer = item.answers.find(a => a.questionId.toString() === q._id.toString());
 
-                        if (answer) {
-                            assessment.push({
-                                method: q.method,
-                                question: q.question,
-                                key: q.key,
-                                answer: {
-                                    text: answer.answer.text,
-                                    duration: answer.duration,
-                                    similarityPoint: answer.similarityPoint
-                                }
-                            })
-                        }
-                    })
-                }
+                    if (answer) {
+                        assessment.push({
+                            method: q.method,
+                            question: q.question,
+                            key: q.key,
+                            answer: {
+                                text: answer.answer.text,
+                                duration: answer.duration,
+                                similarityPoint: answer.similarityPoint
+                            }
+                        })
+                    }
+                })
             })
         });
         assessment = assessment.slice(-10)
@@ -689,7 +673,6 @@ exports.generate = async (req, res) => {
 
         const prompt = exercisePrompt({
             quantity,
-            difficulty,
             method,
             quizHistory,
             assessment,

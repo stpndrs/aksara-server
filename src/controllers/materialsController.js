@@ -40,7 +40,7 @@ exports.index = async (req, res) => {
         }
 
         // Check if child 
-        if (!await userModel.findOne({ _id: childrenId, role: 3 })) return res.status(400).json({ success: false, message: 'Siswa tidak ditemukan' })
+        if (!await userModel.findOne({ _id: childrenId, role: 2 })) return res.status(400).json({ success: false, message: 'Siswa tidak ditemukan' })
 
         const query = {
             childrenId: childrenId,
@@ -95,14 +95,13 @@ exports.store = async (req, res) => {
             childrenId: req.body.childrenId,
             title: req.body.title,
             description: req.body.description,
-            level: req.body.level,
             method: req.body.method,
             content: req.body.content,
             readedText: req.body.readedText,
         })
 
         // Check if child 
-        if (!await userModel.findOne({ _id: req.body.childrenId, role: 3 })) return res.status(400).json({ success: false, message: 'Siswa tidak ditemukan' })
+        if (!await userModel.findOne({ _id: req.body.childrenId, role: 2 })) return res.status(400).json({ success: false, message: 'Siswa tidak ditemukan' })
 
         // validation
         await newMaterial.validate()
@@ -204,7 +203,7 @@ exports.show = async (req, res) => {
 exports.update = async (req, res) => {
     try {
 
-        const { childrenId, title, description, level, method, content, readedText } = req.body
+        const { childrenId, title, description, method, content, readedText } = req.body
 
         const data = await materialModel.findById(req.params.id)
 
@@ -212,12 +211,11 @@ exports.update = async (req, res) => {
         if (!data) return res.status(400).json({ success: false, message: "Material not found" });
 
         // Check if child 
-        if (!await userModel.findOne({ _id: req.body.childrenId, role: 3 })) return res.status(400).json({ success: false, message: 'Siswa tidak ditemukan' })
+        if (!await userModel.findOne({ _id: req.body.childrenId, role: 2 })) return res.status(400).json({ success: false, message: 'Siswa tidak ditemukan' })
 
         data.childrenId = childrenId
         data.title = title
         data.description = description
-        data.level = level
         data.method = method
         data.content = content
         data.readedText = readedText

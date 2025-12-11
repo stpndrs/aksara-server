@@ -32,7 +32,6 @@ exports.index = async (req, res) => {
     try {
         // Validation
         const errors = {}
-        if (!req.query?.level) errors.level = 'Harap memilih level'
         if (!req.query?.method || req.query?.method == 'null') errors.method = 'Harap memilih metode pembelajaran'
         if (Object.keys(errors).length > 0) {
             // Jika ada, kirim satu respons berisi semua error
@@ -44,7 +43,7 @@ exports.index = async (req, res) => {
         }
 
         // Find data
-        const data = await questionBankModel.find({ level: req.query.level, method: req.query.method });
+        const data = await questionBankModel.find({ method: req.query.method });
         data.map(d => {
             if (d.question.type == 'path') {
                 d.question.value = 'image/exercise/' + d.question.value.split('/')[2]

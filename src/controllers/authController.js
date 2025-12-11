@@ -42,11 +42,10 @@ exports.login = async (req, res) => {
 
         // Find user (findOne is more efficient than find for single record)
         const userEmail = await userModel.findOne({ email: username });
-        const userUsername = await userModel.findOne({ email: username });
+        const userUsername = await userModel.findOne({ username: username });
         let user
         if (userEmail) user = userEmail
         else user = userUsername
-
         // Check user existence and password match
         if (!user || !(await bcryptjs.compare(password, user.password))) {
             return res.status(401).json({

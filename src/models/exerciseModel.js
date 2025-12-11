@@ -32,13 +32,13 @@ const mongoose = require('mongoose')
  * @property {mongoose.Types.ObjectId} [teacherId] - ObjectID reference to the teacher who assigned the exercise.
  * @property {string} name - Name of the exercise assignment. Required.
  * @property {string} [description] - Optional description of the exercise.
- * @property {number} level - The difficulty level. Required.
  * @property {number} method - The method/type of learning exercise. Required.
  * * 1: Audio/Listening
  * * 2: Writing/Rewriting
  * * 3: Reading Aloud
  * * 4: Word Ordering
  * * 5: Rapid Naming
+ * * 6: Numeric
  * @property {ExerciseQuestion[]} questions - Array of questions included in this exercise.
  * @property {string} [point] - The calculated total final score for the exercise.
  * @property {Date} createdAt - Timestamp of creation.
@@ -80,10 +80,6 @@ const ExerciseSchema = new mongoose.Schema({
         description: {
             type: String,
             required: false
-        },
-        level: {
-            type: Number,
-            required: [true, 'Level wajib diisi']
         },
         questions: [{
             method: {

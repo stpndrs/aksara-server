@@ -46,8 +46,8 @@ async function processAudioToText(base64Content, keyAnswer) {
 
         // Kembalikan data dari server AI
 
-        console.log("Dari AUdio : " + response.data.transcription)
-        return response.data.transcription;
+        console.log("Dari AUdio : " + response.data)
+        return response.data;
 
     } catch (error) {
         console.error("Error memanggil AI (STT):", error.message);

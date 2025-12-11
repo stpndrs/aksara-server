@@ -144,6 +144,11 @@ exports.update = async (req, res) => {
         const child = await userModel.findById(req.params.id);
         if (!child) return res.status(400).json({ success: false, message: 'Child not found' });
 
+        const username = req.body.fullName.toLowerCase().split(' ').join('')
+        const generatedPassword = await bcryptjs.hash(username, 10)
+
+        child.username = username;
+        child.password = generatedPassword;
         child.fullName = req.body.fullName;
         child.deafness = req.body.deafness;
         child.dateOfBirth = req.body.dateOfBirth;
@@ -235,7 +240,7 @@ exports.show = async (req, res) => {
 
         const teacherObject = teacher ? teacher.toObject() : {};
         const { deleted: teacherDeleted, role: teacherRole, ...teacherData } = teacherObject;
-        
+
 
         const data = {
             child: childData,

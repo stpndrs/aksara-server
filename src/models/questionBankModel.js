@@ -7,7 +7,6 @@ const mongoose = require('mongoose')
 
 /**
  * @typedef {object} QuestionBank
- * @property {number} level - The difficulty level of the question. Required.
  * @property {number} method - The method/type of learning exercise this question applies to. Required.
  * * 1: Audio/Listening
  * * 2: Writing/Rewriting
@@ -23,10 +22,6 @@ const mongoose = require('mongoose')
  * @property {Date} updatedAt - Timestamp of last update.
  */
 const QuestionBankSchema = new mongoose.Schema({
-    level: {
-        type: Number,
-        required: true
-    },
     /**
      * 1 = audio -> save to image (paper text)
      * 2 = writing -> save to image (paper text)

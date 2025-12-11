@@ -1,13 +1,8 @@
 function exercisePrompt({ quantity, difficulty, method, quizHistory, assessment, listImages }) {
-	return `
+  return `
 You are an Advanced AI Special Education Needs Learning Platform for children with autism, ADHD, and other conditions ESPECIALLY DYSLEXIA. 
 You are generating quiz items for children with dyslexia and tunagrahita in Indonesia.
 So use Indonesia Language in the quiz item generated
-
-STRICT QUIZ RULES:
-- Level 1 = single character
-- Level 2 = word
-- Level 3 = sentence
 
 METHOD RULES:
 - If [${method}] is 0, use mixes of the method definitions below.
@@ -21,26 +16,28 @@ Method definitions:
    - question must be a random sentence with each word randomized
    - answer key must be the correct sentence of the same sentence from the question 
    - question and answer are both case-sensitive
-   - Level must be 3.
 5. Rapid naming:
    - Produces simple nouns for objects OR colors.
    - When producing colors:
        - Use Indonesian color names.
        - ALSO include valid hex color codes for the question values.
-   - Level must be 3.
+6. Numerical:
+  - The questions must be addition, subtraction, multiplication, or division
+  - The answer key must be the numerical result of the question.
+  - Example of question format "5 + 5" or "10-5" or "10x5" or "10/2"
+  - The question can be 2, 3, or 4 numbers, with the same operations or different operations.
 
 CASE CONSISTENCY RULE:
 - Variations in uppercase or lowercase are allowed.
 - However, "question.value" and "key" must be EXACTLY the same, including casing (uppercase/lowercase).
 - There must be no difference in casing between "question.value" and "key".
-- For Level 1 (single character), the character must be identical between "question.value" and "key".
+- The key value must without the command of the question
 
 JSON OUTPUT RULES:
 Generate EXACT JSON following this structure:
 [
   {
     "question": { "type": "text|path", "value": "..." },
-    "level": ${difficulty},
     "method": ${method},
     "key": "..."
   }
@@ -52,7 +49,6 @@ STRICT GENERAL RULES:
 - "key" must be in Indonesian.
 - Return ONLY pure JSON. No explanation.
 - DO NOT add any text before or after the JSON.
-- Level must match ${difficulty} exactly.
 - Field "type" must be "text" or "path".
 - Field "type" MUST be "path" when method is 5 AND the quiz item is an object image.
 - When "type" is "path", "value" must be a filename taken from ${listImages} and the image format is png (only filename without path).
@@ -71,15 +67,10 @@ assessment_data: ${JSON.stringify(assessment)}
 }
 
 function materialPrompt({ difficulty, method, listImages, description }) {
-	return `
+  return `
 You are an Advanced AI Special Education Needs Learning Platform for children with autism, ADHD, and other conditions ESPECIALLY DYSLEXIA. 
 You are generating material items for children with dyslexia and tunagrahita in Indonesia.
 So use Indonesia Language in the quiz item generated
-
-STRICT MATERIAL RULES:
-- Level 1 = single character
-- Level 2 = word
-- Level 3 = sentence
 
 METHOD RULES:
 - If [${method}] is 0, "method" must follow the definitions below.
@@ -91,18 +82,19 @@ Method definitions:
 2. Writing: produce text the child must copy.
 3. Audio: produce text that will be converted into audio and written by the child.
 4. Ordering sentences: produce random words that can be reordered into a correct sentence.
-   - Level must be 3.
 5. Rapid naming:
    - Produce simple nouns OR colors.
    - If color, also provide hex color code.
-   - Level must be 3.
+6. Numerical: 
+  - Provide examples of addition, subtraction, multiplication, or division problems that will serve as examples for the children to learn. Include the results of the operations relevant to the problem.
+  - Example of material format "5 + 5" or "10-5" or "10x5" or "10/2"
+  - The material can be 2, 3, or 4 numbers, with the same operations or different operations.
 
 
 JSON OUTPUT RULES:
 Generate EXACT JSON following this structure:
 {
   "title": ".....",
-  "level": 1,
   "method": 3,
   "description": ".....",
   "images": [
@@ -125,7 +117,6 @@ ADDITIONAL RULES:
     - Optional. Can be empty.
     - If used, may contain a valid YouTube link.
 - Field "description" and "content" may contain HTML tags.
-- Output must strictly follow the level rules.
 
 Teacher prompt data (may be empty):
 ${description}
@@ -135,40 +126,39 @@ ${description}
 
 
 function cleanLLMOutput(text) {
-	console.log(text);
+  console.log(text);
 
-	let cleaned = text.trim();
+  let cleaned = text.trim();
 
-	// Remove surrounding markdown fences
-	cleaned = cleaned.replace(/^```json/g, "").replace(/^```/g, "");
-	cleaned = cleaned.replace(/```$/g, "");
+  // Remove surrounding markdown fences
+  cleaned = cleaned.replace(/^```json/g, "").replace(/^```/g, "");
+  cleaned = cleaned.replace(/```$/g, "");
 
-	// Remove useless prefixes
-	cleaned = cleaned.replace(/^Here is.*?:/i, "");
+  // Remove useless prefixes
+  cleaned = cleaned.replace(/^Here is.*?:/i, "");
 
-	return cleaned.trim();
+  return cleaned.trim();
 }
 
 function validateQuizSchema(output) {
-	if (!Array.isArray(output)) return false;
+  if (!Array.isArray(output)) return false;
 
-	return output.every(item =>
-		item &&
-		typeof item.level === "number" &&
-		typeof item.method === "number" &&
-		typeof item.key === "string" &&
-		item.question &&
-		typeof item.question.type === "string" &&
-		typeof item.question.value === "string"
-	);
+  return output.every(item =>
+    item &&
+    typeof item.method === "number" &&
+    typeof item.key === "string" &&
+    item.question &&
+    typeof item.question.type === "string" &&
+    typeof item.question.value === "string"
+  );
 }
 
 function tryParseJSON(text) {
-	try {
-		return JSON.parse(text);
-	} catch {
-		return null;
-	}
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
 }
 
 

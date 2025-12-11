@@ -37,16 +37,13 @@ const MaterialSchema = new mongoose.Schema({
         type: String,
         required: [true, 'Judul wajib diisi']
     },
-    level: {
-        type: Number,
-        required: [true, 'Level wajib diisi']
-    },
     /**
      * 1 = audio -> save to image (paper text)
      * 2 = writing -> save to image (paper text)
      * 3 = reading -> save to audio
      * 4 = random text from one sentence -> save to text (random by express)
      * 5 = rapid naming object and color -> save to audio (tap tap)
+     * 6 = numeric -> operation
      */
     method: {
         type: Number,
