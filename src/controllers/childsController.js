@@ -86,7 +86,7 @@ exports.store = async (req, res) => {
         if (!teacher) return res.status(400).json({ success: false, message: 'Teacher not found' })
 
         const username = req.body.fullName.toLowerCase().split(' ').join('')
-        const generatedPassword = await bcryptjs.hash(username, 10)
+        const generatedPassword = await bcryptjs.hash('123456', 10)
         const newChild = new userModel({
             fullName: req.body.fullName,
             username: username,
