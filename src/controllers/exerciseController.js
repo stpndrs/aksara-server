@@ -686,7 +686,50 @@ exports.generate = async (req, res) => {
             retries: 3
         });
 
-        return res.status(200).json({ success: true, message: 'Success generating questions', data: { questions: result } })
+        // --- FILTERING & VALIDATION LOGIC ---
+
+        // 1. Pastikan result adalah object/array (jika string, parse dulu)
+        let parsedQuestions = typeof result === 'string' ? JSON.parse(result.replace(/```json|```/g, "")) : result;
+
+        // 2. Lakukan Filter Berdasarkan Kriteria
+        const filteredQuestions = parsedQuestions.filter((item) => {
+            // A. Filter Method (Hanya 1 - 6)
+            const isValidMethod = item.method >= 1 && item.method <= 6;
+
+            // B. Jika user minta method spesifik (method != 0), pastikan hanya method itu yang lolos
+            const matchesRequestedMethod = method == 0 ? true : item.method == method;
+
+            // C. Validasi Khusus Aritmatika (Method 6): Tidak boleh ada path/gambar
+            if (item.method === 6 && item.question.type === 'path') return false;
+
+            // D. Validasi Gambar (Method 5): Harus ada di listImages (cek nama file murni tanpa path)
+            if (item.question.type === 'path') {
+                const imageName = item.question.value.replace('storage/exercise/', ''); // bersihkan path jika AI terlanjur nambahin
+                if (!listImages.includes(imageName)) return false;
+            }
+
+            return isValidMethod && matchesRequestedMethod;
+        });
+
+        // 3. Map untuk menambahkan path 'storage/exercise/' dan extensi .png jika belum ada
+        const finalQuestions = filteredQuestions.map(item => {
+            if (item.question.type === 'path') {
+                // Pastikan nama file bersih dari path lama, lalu tambahkan path yang diinginkan
+                const fileName = item.question.value.split('/').pop(); // ambil 'kucing' saja
+                const formattedFileName = fileName.endsWith('.png') ? fileName : `${fileName}.png`;
+
+                return {
+                    ...item,
+                    question: {
+                        ...item.question,
+                        value: `image/exercise/${formattedFileName}`
+                    }
+                };
+            }
+            return item;
+        }).slice(0, quantity); // Ambil sesuai quantity yang diminta
+
+        return res.status(200).json({ success: true, message: 'Success generating questions', data: { questions: finalQuestions } })
 
     } catch (err) {
         errorHandling(err, req, res)
