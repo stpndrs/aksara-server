@@ -306,7 +306,7 @@ exports.destroy = async (req, res) => {
         const teacher = await userModel.findById(child.teacherId);
         if (teacher) {
             teacher.childIds.pull(child._id);
-            await teacher.save();
+            await teacher.save({ validateBeforeSave: false });
         }
 
         // Perform Soft Delete
