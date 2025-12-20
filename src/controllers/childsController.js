@@ -142,42 +142,65 @@ exports.store = async (req, res) => {
 exports.update = async (req, res) => {
     try {
         const child = await userModel.findById(req.params.id);
-        if (!child) return res.status(400).json({ success: false, message: 'Child not found' });
+        if (!child) return res.status(404).json({ success: false, message: 'Child not found' });
 
-        const username = req.body.username.toLowerCase().split(' ').join('')
-        const generatedPassword = await bcryptjs.hash(req.body.password, 10)
+        const data = req.body || {};
 
-        child.username = username;
-        if (req.body.password) child.password = generatedPassword;
-        child.fullName = req.body.fullName;
-        child.phone = req.body.phone;
-        child.address = req.body.address;
-        child.email = req.body.email;
-        child.deafness = req.body.deafness;
-        child.dateOfBirth = req.body.dateOfBirth;
-        child.parent.fullName = req.body.parentName;
-        child.parent.phone = req.body.parentPhone;
-        child.parent.address = req.body.parentAddress;
-        child.parent.work = req.body.parentWork;
+        if (data.username) {
+            child.username = data.username.toLowerCase().replace(/\s+/g, '');
+        }
 
-        // Validate specific fields
-        await child.validate([
-            'fullName',
-            'deafness',
-            'dateOfBirth',
-            'parent.fullName',
-        ]);
+        if (data.password && data.password.trim() !== "") {
+            child.password = await bcryptjs.hash(data.password, 10);
+        }
 
-        await child.save({ new: true, validateBeforeSave: false });
+        const fields = ['fullName', 'phone', 'address', 'email', 'deafness', 'dateOfBirth'];
+        fields.forEach(field => {
+            if (data[field] !== undefined) {
+                child[field] = data[field];
+            }
+        });
 
-        const { childIds, deleted, role, password, ...childObj } = child.toObject();
+        if (!child.parent) child.parent = {};
 
-        res.status(201).json({
+        if (data.parentName !== undefined) child.parent.fullName = data.parentName;
+        if (data.parentPhone !== undefined) child.parent.phone = data.parentPhone;
+        if (data.parentAddress !== undefined) child.parent.address = data.parentAddress;
+        if (data.parentWork !== undefined) child.parent.work = data.parentWork;
+
+        // 4. Validasi & Save
+        try {
+            // Kita validasi field yang krusial saja
+            await child.validate();
+        } catch (valError) {
+            return res.status(400).json({
+                success: false,
+                message: "Validasi gagal",
+                errors: valError.errors
+            });
+        }
+
+        await child.save();
+
+        // 5. Response (Hapus data sensitif)
+        const result = child.toObject();
+        delete result.password;
+        delete result.role;
+
+        res.status(200).json({
             success: true,
             message: "Child successfully updated",
-            data: childObj
+            data: result
         });
+
     } catch (error) {
+        // Menangani error dari MongoDB (seperti Unique Constraint)
+        if (error.code === 11000) {
+            return res.status(400).json({
+                success: false,
+                message: "Username atau Email sudah terdaftar"
+            });
+        }
         errorHandling(error, req, res);
     }
 };
